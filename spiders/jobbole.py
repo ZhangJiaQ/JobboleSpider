@@ -1,29 +1,58 @@
 # -*- coding: utf-8 -*-
+from urllib import parse
+
 import scrapy
 import re
+from scrapy import Request
+from ArticleSpider.items import JobboleArticleItem
 
 class JobboleSpider(scrapy.Spider):
     name = 'jobbole'
     allowed_domains = ['blog.jobbole.com']
-    start_urls = ['http://blog.jobbole.com/102337/']
+    start_urls = ['http://blog.jobbole.com/all-posts/']
 
     def parse(self, response):
-        title = response.xpath('//*[@id="post-102337"]/div[1]/h1/text()').extract()[0]
+        """
+        1. 获取文章列表页中的文章url并交给scrapy下载后并进行解析
+        2. 获取下一页的url并交给scrapy进行下载， 下载完成后交给parse
+        """
+        # 解析列表页中的所有文章url并交给scrapy下载后并进行解析
+        post_nodes = response.css('#archive .post-thumb a')
+        for post_node in post_nodes:
+            image_url = post_node.css('img::attr(src)')extract_first("")
 
-        create_date = response.xpath('//*[@id="post-102337"]/div[2]/p/text()').extract()[0].strip().replace("·","").strip()
+            yield Request(url=parse.urljoin(response.url,post_url),meta={ },callback=self.content_parse)
 
-        praise_nums = response.xpath('//*[@id="102337votetotal"]/text()').extract()[0]
+        # 提取下一页并交给scrapy进行下载
+        next_url = response.css('.navigation .next ::attr(href)').extract_first("")
+        if next_url:
+            yield Request(url=parse.urljoin(response.url,next_url),callback=self.parse)
 
 
-        fav_nums = response.xpath('//*[@id="post-102337"]/div[3]/div[3]/span[2]/text()').extract()[0]
+    def content_parse(self , response):
+        article_item = JobboleArticleItem()
+
+
+        title = response.css('#wrapper .entry-header h1::text').extract()[0]
+
+        create_date = response.css('.grid-8 .entry-meta-hide-on-mobile ::text').extract()[0].strip().replace("·","").strip()
+
+        parise_nums = int(response.css(".vote-post-up h10::text").extract()[0])
+
+
+        fav_nums = response.css('.bookmark-btn::text').extract()
         fav_match = re.match(r'.*(\d+).*',fav_nums)
         if fav_match is not None:
-            fav_nums = fav_match.group(1)
+            fav_nums = int(fav_match.group(1))
+        else:
+            fav_nums = 0
 
-        comment_nums = response.xpath('//*[@id="post-102337"]/div[3]/div[3]/a/span/text()').extract()[0]
+        comment_nums = response.css('a[href*="article-comment"]::text').extract()
         comment_match = re.match(r'.*(\d+).*',comment_nums)
         if comment_match is not None:
-            comment_nums = comment_match.group(1)
+            comment_nums = int(comment_match.group(1))
+        else:
+            comment_nums = 0
 
         content = response.xpath('//div[@class="entry"]').extract()[0]
 
@@ -31,5 +60,18 @@ class JobboleSpider(scrapy.Spider):
         tag_list = [element for element in tag_list if not element.strip().endswith("评论")]
         tags = ",".join(tag_list)
 
+        """
+        url_object_id = scrapy.Field()
+        front_image_url = scrapy.Field()
+        front_image_path = scrapy.Field()
+        """
+        article_item["title"] = title
+        article_item["creat_time"] = create_date
+        article_item["parse_nums"] = parise_nums
+        article_item["comment_nums"] = comment_nums
+        article_item["fav_nums"] = fav_nums
+        article_item["tages"] = tags
+        article_item["content"] = content
+        article_item["url"] = response.url
 
-        pass
+        yield article_item
