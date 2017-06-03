@@ -3,8 +3,9 @@ from urllib import parse
 
 import scrapy
 import re
-from scrapy import Request
+from scrapy.http import Request
 from ArticleSpider.items import JobboleArticleItem
+
 
 class JobboleSpider(scrapy.Spider):
     name = 'jobbole'
@@ -17,11 +18,13 @@ class JobboleSpider(scrapy.Spider):
         2. 获取下一页的url并交给scrapy进行下载， 下载完成后交给parse
         """
         # 解析列表页中的所有文章url并交给scrapy下载后并进行解析
-        post_nodes = response.css('#archive .post-thumb a')
+        post_nodes = response.css('#archive .floated-thumb .post-thumb a')
         for post_node in post_nodes:
-            image_url = post_node.css('img::attr(src)')extract_first("")
+            image_url = post_node.css("img::attr(src)").extract_first("")
+            post_url = post_node.css("::attr(href)").extract_first("")
+            yield Request(url=parse.urljoin(response.url, post_url), meta={"front_image_url": image_url},callback=self.content_parse)
 
-            yield Request(url=parse.urljoin(response.url,post_url),meta={ },callback=self.content_parse)
+
 
         # 提取下一页并交给scrapy进行下载
         next_url = response.css('.navigation .next ::attr(href)').extract_first("")
@@ -30,8 +33,10 @@ class JobboleSpider(scrapy.Spider):
 
 
     def content_parse(self , response):
+
         article_item = JobboleArticleItem()
 
+        front_image_url = response.meta.get("front_image_url", "")# feng mian tu
 
         title = response.css('#wrapper .entry-header h1::text').extract()[0]
 
@@ -39,18 +44,17 @@ class JobboleSpider(scrapy.Spider):
 
         parise_nums = int(response.css(".vote-post-up h10::text").extract()[0])
 
-
-        fav_nums = response.css('.bookmark-btn::text').extract()
-        fav_match = re.match(r'.*(\d+).*',fav_nums)
-        if fav_match is not None:
-            fav_nums = int(fav_match.group(1))
+        fav_nums = response.css(".bookmark-btn::text").extract()[0]
+        match_re = re.match(".*?(\d+).*", fav_nums)
+        if match_re:
+            fav_nums = int(match_re.group(1))
         else:
             fav_nums = 0
 
-        comment_nums = response.css('a[href*="article-comment"]::text').extract()
-        comment_match = re.match(r'.*(\d+).*',comment_nums)
-        if comment_match is not None:
-            comment_nums = int(comment_match.group(1))
+        comment_nums = response.css("a[href='#article-comment'] span::text").extract()[0]
+        match_re = re.match(".*?(\d+).*", comment_nums)
+        if match_re:
+            comment_nums = int(match_re.group(1))
         else:
             comment_nums = 0
 
@@ -62,16 +66,17 @@ class JobboleSpider(scrapy.Spider):
 
         """
         url_object_id = scrapy.Field()
-        front_image_url = scrapy.Field()
         front_image_path = scrapy.Field()
         """
         article_item["title"] = title
         article_item["creat_time"] = create_date
-        article_item["parse_nums"] = parise_nums
+        article_item["parise_nums"] = parise_nums
         article_item["comment_nums"] = comment_nums
         article_item["fav_nums"] = fav_nums
         article_item["tages"] = tags
         article_item["content"] = content
         article_item["url"] = response.url
+        article_item["front_image_url"] = [front_image_url]
+
 
         yield article_item
