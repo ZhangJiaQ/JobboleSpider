@@ -15,7 +15,7 @@ class ArticlespiderItem(scrapy.Item):
 
 class JobboleArticleItem(scrapy.Item):
     title = scrapy.Field()
-    creat_time = scrapy.Field()
+    create_time = scrapy.Field()
     url = scrapy.Field()
     url_object_id = scrapy.Field()
     front_image_url = scrapy.Field()

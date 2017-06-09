@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
+import datetime
 from urllib import parse
 
 import scrapy
 import re
 from scrapy.http import Request
 from ArticleSpider.items import JobboleArticleItem
-
+from ArticleSpider.utills.common import get_md5
 
 class JobboleSpider(scrapy.Spider):
     name = 'jobbole'
@@ -65,18 +66,24 @@ class JobboleSpider(scrapy.Spider):
         tags = ",".join(tag_list)
 
         """
-        url_object_id = scrapy.Field()
         front_image_path = scrapy.Field()
         """
         article_item["title"] = title
-        article_item["creat_time"] = create_date
+        try:
+            create_date = datetime.datetime.strptime(create_date, "%Y:%m:%d").date()
+        except Exception as e:
+            create_date = datetime.datetime.now().date()
+
+
+        article_item["create_time"] = create_date
         article_item["parise_nums"] = parise_nums
         article_item["comment_nums"] = comment_nums
         article_item["fav_nums"] = fav_nums
         article_item["tages"] = tags
         article_item["content"] = content
         article_item["url"] = response.url
-        article_item["front_image_url"] = [front_image_url]
+        article_item["url_object_id"] = get_md5(response.url)
+        article_item["front_image_url"] = front_image_url
 
 
         yield article_item
