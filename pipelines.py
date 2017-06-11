@@ -45,7 +45,7 @@ class MysqlTwistPipeline(object):
     def do_insert(self,cursor,item):
         # 执行具体的插入d
         insert_sql = """
-                    insert into jobbole_article(title, url, create_time, fav_nums , url_object_id , front_image_url , parise_nums , comment_nums , tages)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    insert into jobbole_article(title, url, create_time, fav_nums , url_object_id , front_image_url , parise_nums , comment_nums , tages, content)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
-        cursor.execute(insert_sql, (item["title"], item["url"], item["create_time"], item["fav_nums"], item["url_object_id"], item["front_image_url"], item["parise_nums"], item["comment_nums"], item["tages"]))
+        cursor.execute(insert_sql, (item["title"], item["url"], item["create_time"], item["fav_nums"], item["url_object_id"], item["front_image_url"], item["parise_nums"], item["comment_nums"], item["tages"],item["content"]))
